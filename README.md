@@ -1,1 +1,1 @@
-# opencvalgo
+# opencvalgo без boost
