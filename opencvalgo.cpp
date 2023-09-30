@@ -1,10 +1,18 @@
 ﻿#include <opencv2/opencv.hpp>
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/geometries/polygon.hpp>
 #include <iostream>
 #include <vector>
 
+namespace bg = boost::geometry;
+
+typedef bg::model::point<int, 2, bg::cs::cartesian> Point;
+typedef bg::model::polygon<Point> Polygon;
+
 int main() {
-    // Устанавливаем локаль для поддержки русского языка
     setlocale(LC_ALL, "Russian");
+
 
     std::cout << "Выберите изображение для обработки:" << std::endl;
     std::cout << "1. j1.jpg" << std::endl;
@@ -33,7 +41,7 @@ int main() {
     }
 
     // Загрузка изображения с диска
-    cv::Mat image = cv::imread("j1.jpg");
+    cv::Mat image = cv::imread(imagePath);
 
     // Проверка, удалось ли загрузить изображение
     if (image.empty()) {
@@ -41,7 +49,7 @@ int main() {
         return -1;
     }
 
-    // Перевод изображения в оттенки серого
+    // Преобразование изображения в оттенки серого
     cv::Mat grayImage;
     cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
 
@@ -54,28 +62,15 @@ int main() {
     cv::findContours(thresholdImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     // Отфильтровать контуры спичечных коробков
-    std::vector<cv::RotatedRect> matchBoxes;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         if (area > 500) {  // Минимальная площадь для контура
-            cv::RotatedRect box = cv::minAreaRect(contour);
-            double aspectRatio = std::max(box.size.width / box.size.height, box.size.height / box.size.width);
-
-            if (aspectRatio >= 1.0 && aspectRatio <= 5.0) {  // Соотношение сторон
-                matchBoxes.push_back(box);
+            double aspectRatio = static_cast<double>(cv::boundingRect(contour).width) / cv::boundingRect(contour).height;
+            if (aspectRatio >= 1.0 && aspectRatio <= 5.0) {  // Соотношение сторон (горизонтальные объекты)
+                // Нарисовать рамку вокруг спичечного коробка
+                cv::Rect rect = cv::boundingRect(contour);
+                cv::rectangle(image, rect, cv::Scalar(0, 0, 255), 2);
             }
-        }
-    }
-
-    // Наложение рамок на спичечные коробки
-    cv::Scalar color(0, 0, 255); // Красный цвет для обводки
-    int thickness = 2; // Толщина линии обводки
-    for (const auto& box : matchBoxes) {
-        cv::Point2f vertices[4];
-        box.points(vertices);
-
-        for (int i = 0; i < 4; ++i) {
-            cv::line(image, vertices[i], vertices[(i + 1) % 4], color, thickness);
         }
     }
 
